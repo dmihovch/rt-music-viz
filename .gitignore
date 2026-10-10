@@ -37,6 +37,7 @@
 *.exe
 *.out
 *.app
+rt_music_viz
 
 # Build directories
 build/

@@ -28,22 +28,22 @@ No external FFT library is used; the analyzer hand-rolls its own transform.
 make
 ```
 
-The Makefile compiles the sources directly; no other build system is involved.
-The binary is written to `build/rt_music_viz`.
+The Makefile compiles the sources directly into a single executable named
+`rt_music_viz` in the repo root; no other build system is involved.
 
 Other targets:
 
 - `make run` — build and run the binary
 - `make valgrind` — build and run the binary under valgrind
-- `make clean` — remove the build directory
+- `make clean` — remove the binary and `compile_commands.json`
 - `make compile_commands` — regenerate `compile_commands.json` for the LSP
 
 ## Editor / LSP
 
 Run `make compile_commands` to (re)generate `compile_commands.json` at the repo
-root with `bear`. `.clangd` points clangd at it, so the language server resolves
-the PipeWire and raylib includes and the exact compiler flags without extra
-configuration.
+root with `bear`. clangd discovers it automatically, so the language server
+resolves the PipeWire and raylib includes and the exact compiler flags without
+extra configuration.
 
 ## Layout
 
