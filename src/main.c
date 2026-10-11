@@ -40,28 +40,11 @@ int main(int argc, char** argv) {
 
 
     AudioCapture capture;
-    if (audio_capture_start(&capture, &buffer, SAMPLE_RATE, CHANNELS, &argc, &argv) < 0) { //spawns writer thread with pipewire, allocs capture stuff
+    if (audio_capture_start(&capture, &buffer, SAMPLE_RATE, CHANNELS, &argc, &argv) != 0) { //spawns writer thread with pipewire, allocs capture stuff
         audio_buffer_destroy(&buffer);
-		perror("Failed to start audio capture");
+		perror("Failed to start PipeWire audio capture");
         return errno;
     }
-
-		//testing start
-
-	while(1){
-
-	size_t total = 0;
-    float samples_test[FFT_SIZE];
-        size_t count = audio_buffer_read(&buffer, samples_test, FFT_SIZE);
-        if (count == FFT_SIZE) {
-			for(int i = 0; i< FFT_SIZE; i++){
-				printf("sample %zu value %f\n", total, samples_test[i]);
-				total++;
-			}
-        }
-	}
-
-		//testing end
 
     Analyzer analyzer;
     analyzer_init(&analyzer, FFT_SIZE);

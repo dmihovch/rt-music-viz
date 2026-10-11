@@ -12,7 +12,7 @@ static void on_process(void* userdata){
     struct pw_buffer *pw_buf = pw_stream_dequeue_buffer(capture->stream);
     if (pw_buf == NULL){
 		return;
-	} 
+	}
 
     struct spa_buffer *buf = pw_buf->buffer;
 
@@ -20,12 +20,12 @@ static void on_process(void* userdata){
         buf->datas[0].data != NULL &&
         buf->datas[0].chunk != NULL) {
 
-        const float *samples = buf->datas[0].data;
+        // Sample data starts at a byte offset into the mapped buffer.
+        const float *samples = (const float *)((const uint8_t *)buf->datas[0].data + buf->datas[0].chunk->offset);
 
-        uint32_t n_samples =
-            buf->datas[0].chunk->size / sizeof(float);
-		
-		audio_buffer_write(capture->buffer, samples, n_samples);
+        uint32_t n_samples = buf->datas[0].chunk->size / sizeof(float);
+
+        audio_buffer_write(capture->buffer, samples, n_samples);
     }
 
     pw_stream_queue_buffer(capture->stream, pw_buf);
@@ -67,7 +67,7 @@ int audio_capture_start(AudioCapture *capture, AudioBuffer *buffer, uint32_t sam
         "audio-capture",
         props,
         &stream_events,
-        &buffer
+        capture
     );
 
     if (!capture->stream) {
@@ -84,11 +84,15 @@ int audio_capture_start(AudioCapture *capture, AudioBuffer *buffer, uint32_t sam
 
     const struct spa_pod *params[1];
 
+    // Pin the negotiated format to the requested rate and channels so the
+    // captured layout matches capture->sample_rate and capture->channels.
     params[0] = spa_format_audio_raw_build(
         &builder,
         SPA_PARAM_EnumFormat,
         &SPA_AUDIO_INFO_RAW_INIT(
-            .format = SPA_AUDIO_FORMAT_F32
+            .format = SPA_AUDIO_FORMAT_F32,
+            .rate = sample_rate,
+            .channels = channels
         )
     );
 
@@ -102,7 +106,7 @@ int audio_capture_start(AudioCapture *capture, AudioBuffer *buffer, uint32_t sam
         params,
         1
     );
-	
+
     pw_thread_loop_unlock(capture->thread_loop);
 
 	if(res < 0){

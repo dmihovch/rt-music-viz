@@ -12,6 +12,7 @@ int audio_buffer_init(AudioBuffer *buffer, size_t capacity) {
 	if(!buffer->samples){
 		return 1;
 	}
+	buffer->capacity = capacity;
 	atomic_init(&buffer->windex, 0);
 	atomic_init(&buffer->rindex, 0);
 	return 0;
@@ -26,8 +27,7 @@ void audio_buffer_destroy(AudioBuffer *buffer) {
 
 //only to be called by the audio capturer
 void audio_buffer_write(AudioBuffer *buffer, const float *samples, size_t count) {
-    // TODO: copy samples up to the free space and publish write_index.
-		
+
 	for(size_t i = 0; i < count; ++i){
 		size_t write = atomic_load_explicit(&buffer->windex, memory_order_relaxed);
 		size_t next_write = next_i(write, buffer->capacity);

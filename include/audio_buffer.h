@@ -16,8 +16,7 @@ typedef struct {
 int audio_buffer_init(AudioBuffer *buffer, size_t capacity);
 void audio_buffer_destroy(AudioBuffer *buffer);
 
-// Returns the number of samples written, which may be less than count when
-// the buffer is full.
+// Writes up to count samples, stopping early when the buffer is full.
 void audio_buffer_write(AudioBuffer *buffer, const float *samples, size_t count);
 
 // Returns the number of samples read, which may be less than count when the
