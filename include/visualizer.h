@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-// Draws the magnitude spectrum as bars with raylib.
-void visualizer_draw(const float *magnitudes, size_t count);
+// Draws magnitude bars inside an active Raylib drawing frame.
+void visualizer_draw_bars(const float *magnitudes, size_t count);
 
 #endif

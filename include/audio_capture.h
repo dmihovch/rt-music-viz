@@ -1,6 +1,7 @@
 #ifndef RTMV_AUDIO_CAPTURE_H
 #define RTMV_AUDIO_CAPTURE_H
 
+#include <stdatomic.h>
 #include <stdint.h>
 
 #include "audio_buffer.h"
@@ -15,6 +16,10 @@ typedef struct {
     AudioBuffer *buffer;
     uint32_t sample_rate;
     uint8_t channels;
+    _Atomic uint32_t process_callbacks;
+    _Atomic uint32_t dequeued_buffers;
+    _Atomic uint32_t buffers_with_samples;
+    _Atomic uint32_t sample_values_received;
 } AudioCapture;
 
 // Returns 0 on success, non-zero on failure.

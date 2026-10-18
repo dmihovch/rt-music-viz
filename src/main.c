@@ -1,9 +1,9 @@
 #include <raylib.h>
 #include <stddef.h>
-
 #include "analyzer.h"
 #include "audio_buffer.h"
 #include "audio_capture.h"
+#include "debug_log.h"
 #include "visualizer.h"
 #include <assert.h>
 #include <stdio.h>
@@ -16,17 +16,14 @@ enum {
     FFT_SIZE = 2048,
     WINDOW_WIDTH = 1024,
     WINDOW_HEIGHT = 512,
-	FPS = 144,
+	FPS = 60,
 };
 
 int main(int argc, char** argv) {
 		
 
-	fprintf(stdout, "Compiled with Raylib Version %s\n", RAYLIB_VERSION);
-	fprintf(stdout, "Compiled with libpipewire %s\n"
-				"Linked with libpipewire %s\n",
-				pw_get_headers_version(),
-				pw_get_library_version());
+	debug_log_runtime_versions(RAYLIB_VERSION, pw_get_headers_version(),
+						   pw_get_library_version());
 
 
 	int err = 0;
@@ -46,20 +43,30 @@ int main(int argc, char** argv) {
         return errno;
     }
 
-    Analyzer analyzer;
+    Analyzer analyzer = {0};
     analyzer_init(&analyzer, FFT_SIZE);
 
-    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Real-Time Music Visualizer");
+	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Real-Time Music Visualizer");
+	SetExitKey(KEY_Q);
 
     float samples[FFT_SIZE];
+	DebugLog debug_log;
+	debug_log_init(&debug_log, GetTime());
 
 	SetTargetFPS(FPS);
-    while (!WindowShouldClose()) {
+	while (!WindowShouldClose()) {
         size_t count = audio_buffer_read(&buffer, samples, FFT_SIZE);
+		debug_log_record_samples(&debug_log, samples, count);
+
         if (count == FFT_SIZE) {
             analyzer_process(&analyzer, samples, count);
         }
-        visualizer_draw(analyzer.magnitudes, analyzer.fft_size / 2);
+		BeginDrawing();
+		ClearBackground(BLACK);
+		visualizer_draw_bars(analyzer.magnitudes, analyzer.fft_size / 2);
+		EndDrawing();
+
+		debug_log_report_if_due(&debug_log, &capture, GetTime());
     }
 
     CloseWindow();
