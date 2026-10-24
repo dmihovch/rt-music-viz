@@ -1,6 +1,6 @@
 #include <raylib.h>
 #include <stddef.h>
-#include "analyzer.h"
+#include "fft.h"
 #include "audio_buffer.h"
 #include "audio_capture.h"
 #include "debug_log.h"
@@ -10,21 +10,20 @@
 #include <errno.h>
 
 enum {
+    EQ_BARS = 96,
     SAMPLE_RATE = 48000,
     CHANNELS = 2,
     BUFFER_CAPACITY = 1 << 15,  // samples 32K
-    FFT_SIZE = 2048,
     WINDOW_WIDTH = 1024,
     WINDOW_HEIGHT = 512,
-	FPS = 60,
+    FPS = 60,
 };
+ 
 
 int main(int argc, char** argv) {
 		
-
 	debug_log_runtime_versions(RAYLIB_VERSION, pw_get_headers_version(),
 						   pw_get_library_version());
-
 
 	int err = 0;
 
@@ -43,13 +42,14 @@ int main(int argc, char** argv) {
         return errno;
     }
 
-    Analyzer analyzer = {0};
-    analyzer_init(&analyzer, FFT_SIZE);
+    fft_hanns_init();
 
 	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Real-Time Music Visualizer");
 	SetExitKey(KEY_Q);
 
     float samples[FFT_SIZE];
+	// float old_samples[FFT_SIZE]; we may want to make it so that the second half of the previous array is the first half of the new one
+	float bars[EQ_BARS];
 	DebugLog debug_log;
 	debug_log_init(&debug_log, GetTime());
 
@@ -59,18 +59,17 @@ int main(int argc, char** argv) {
 		debug_log_record_samples(&debug_log, samples, count);
 
         if (count == FFT_SIZE) {
-            analyzer_process(&analyzer, samples, count);
+            fft_process(samples, bars, EQ_BARS);
         }
 		BeginDrawing();
 		ClearBackground(BLACK);
-		visualizer_draw_bars(analyzer.magnitudes, analyzer.fft_size / 2);
+		visualizer_draw_bars(bars, EQ_BARS);
 		EndDrawing();
 
 		debug_log_report_if_due(&debug_log, &capture, GetTime());
     }
 
     CloseWindow();
-    analyzer_destroy(&analyzer);
     audio_capture_stop(&capture); //frees the capture stuff, pw_deinit
     audio_buffer_destroy(&buffer);
     return 0;
