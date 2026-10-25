@@ -5,20 +5,10 @@
 #include "audio_capture.h"
 #include "debug_log.h"
 #include "visualizer.h"
+#include "config.h"
 #include <assert.h>
 #include <stdio.h>
 #include <errno.h>
-
-enum {
-    EQ_BARS = 96,
-    SAMPLE_RATE = 48000,
-    CHANNELS = 2,
-    BUFFER_CAPACITY = 1 << 15,  // samples 32K
-    WINDOW_WIDTH = 1024,
-    WINDOW_HEIGHT = 512,
-    FPS = 60,
-};
- 
 
 int main(int argc, char** argv) {
 		
@@ -59,11 +49,11 @@ int main(int argc, char** argv) {
 		debug_log_record_samples(&debug_log, samples, count);
 
         if (count == FFT_SIZE) {
-            fft_process(samples, bars, EQ_BARS);
+            fft_process(samples, bars);
         }
 		BeginDrawing();
 		ClearBackground(BLACK);
-		visualizer_draw_bars(bars, EQ_BARS);
+		visualizer_draw_bars(bars, EQ_BARS); //dunno if I want to pass the arg or just use macro definitons
 		EndDrawing();
 
 		debug_log_report_if_due(&debug_log, &capture, GetTime());

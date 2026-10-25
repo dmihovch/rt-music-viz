@@ -1,4 +1,5 @@
 #include "fft.h"
+#include "config.h"
 #include <stdlib.h>
 #include <math.h>
 #include <complex.h>
@@ -7,7 +8,8 @@
 static float complex fft_buf[FFT_SIZE];
 static float hanns[FFT_SIZE];
 static float magnitudes[NUM_BINS];
-
+static float freq_bounds[EQ_BARS];
+static float freq_ratio;
 
 void radix2_fft(float complex* buf, int N){
 	int j = 0;
@@ -50,16 +52,27 @@ void radix2_fft(float complex* buf, int N){
 
 }
 
-
-//TODO implement bar lookup table
-void fft_init() {
+void init_hanns(){
 	for(size_t i = 0; i<FFT_SIZE; ++i){
 		hanns[i] = 0.5f * (1 - cosf((2 * M_PI / FFT_SIZE-1)));
 	}
 }
 
+void init_freq_bounds(){
+	freq_ratio = powf(FREQ_UPPER_BOUND / FREQ_LOWER_BOUND, 1.0 / EQ_BARS);
+	freq_bounds[0] = FREQ_LOWER_BOUND;
+	for(int i = 1; i<EQ_BARS; i++){
+		freq_bounds[i] = FREQ_LOWER_BOUND * powf(freq_ratio, i);
+	}
+}
 
-void fft_process(float *samples, float* bars, int n_bars) {
+void fft_init() {
+	init_hanns();
+	init_freq_bounds();
+}
+
+
+void fft_process(float *samples, float* bars) {
 	for(int i = 0; i<FFT_SIZE; i++){
 		samples[i] *= hanns[i];
 		fft_buf[i] = samples[i] + 0.0f * I; // this may be inefficient
