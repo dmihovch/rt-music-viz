@@ -5,24 +5,15 @@
 #include "audio_capture.h"
 #include "debug_log.h"
 #include "visualizer.h"
+#include "config.h"
 #include <assert.h>
 #include <stdio.h>
 #include <errno.h>
 
-enum {
-    EQ_BARS = 96,
-    SAMPLE_RATE = 48000,
-    CHANNELS = 2,
-    BUFFER_CAPACITY = 1 << 15,  // samples 32K
-    WINDOW_WIDTH = 1024,
-    WINDOW_HEIGHT = 512,
-    FPS = 60,
-};
- 
-
 int main(int argc, char** argv) {
 		
-	debug_log_runtime_versions(RAYLIB_VERSION, pw_get_headers_version(),
+	debug_log_runtime_versions(stdout, RAYLIB_VERSION,
+						   pw_get_headers_version(),
 						   pw_get_library_version());
 
 	int err = 0;
@@ -36,13 +27,15 @@ int main(int argc, char** argv) {
 
 
     AudioCapture capture;
-    if (audio_capture_start(&capture, &buffer, SAMPLE_RATE, CHANNELS, &argc, &argv) != 0) { //spawns writer thread with pipewire, allocs capture stuff
+    if (audio_capture_start(&capture, &buffer, SAMPLE_RATE, CHANNELS,
+                            stderr, &argc, &argv) != 0) { //spawns writer thread with pipewire, allocs capture stuff
         audio_buffer_destroy(&buffer);
 		perror("Failed to start PipeWire audio capture");
         return errno;
     }
 
-    fft_hanns_init();
+    FFT fft;
+    fft_init(&fft);
 
 	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Real-Time Music Visualizer");
 	SetExitKey(KEY_Q);
@@ -52,6 +45,7 @@ int main(int argc, char** argv) {
 	float bars[EQ_BARS];
 	DebugLog debug_log;
 	debug_log_init(&debug_log, GetTime());
+	DebugLogReport debug_report;
 
 	SetTargetFPS(FPS);
 	while (!WindowShouldClose()) {
@@ -59,14 +53,17 @@ int main(int argc, char** argv) {
 		debug_log_record_samples(&debug_log, samples, count);
 
         if (count == FFT_SIZE) {
-            fft_process(samples, bars, EQ_BARS);
+            fft_process(&fft, samples);
         }
 		BeginDrawing();
 		ClearBackground(BLACK);
-		visualizer_draw_bars(bars, EQ_BARS);
+		visualizer_draw_bars(bars, EQ_BARS, GetScreenWidth(), GetScreenHeight());
 		EndDrawing();
 
-		debug_log_report_if_due(&debug_log, &capture, GetTime());
+		if (debug_log_collect_report(&debug_log, &capture, GetTime(),
+								 &debug_report)) {
+			debug_log_print_report(stderr, &debug_report);
+		}
     }
 
     CloseWindow();
