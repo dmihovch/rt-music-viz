@@ -1,17 +1,8 @@
 #include "fft.h"
-#include "config.h"
-#include <stdlib.h>
 #include <math.h>
-#include <complex.h>
-#include <stdio.h>
+#include <stddef.h>
 
-static float complex fft_buf[FFT_SIZE];
-static float hanns[FFT_SIZE];
-static float magnitudes[NUM_BINS];
-static float freq_bounds[EQ_BARS];
-static float freq_ratio;
-
-void radix2_fft(float complex* buf, int N){
+static void radix2_fft(float complex* buf, int N){
 	int j = 0;
 	for(int i = 1; i<N; i++){
 		int bit = N / 2;
@@ -52,36 +43,37 @@ void radix2_fft(float complex* buf, int N){
 
 }
 
-void init_hanns(){
+static void init_hanns(float *hanns){
 	for(size_t i = 0; i<FFT_SIZE; ++i){
 		hanns[i] = 0.5f * (1 - cosf((2 * M_PI / FFT_SIZE-1)));
 	}
 }
 
-void init_freq_bounds(){
-	freq_ratio = powf(FREQ_UPPER_BOUND / FREQ_LOWER_BOUND, 1.0 / EQ_BARS);
-	freq_bounds[0] = FREQ_LOWER_BOUND;
+static void init_freq_bounds(float *freq_bounds, float *freq_ratio,
+							 float lower_bound, float upper_bound){
+	*freq_ratio = powf(upper_bound / lower_bound, 1.0 / EQ_BARS);
+	freq_bounds[0] = lower_bound;
 	for(int i = 1; i<EQ_BARS; i++){
-		freq_bounds[i] = FREQ_LOWER_BOUND * powf(freq_ratio, i);
+		freq_bounds[i] = lower_bound * powf(*freq_ratio, i);
 	}
 }
 
-void fft_init() {
-	init_hanns();
-	init_freq_bounds();
+void fft_init(FFT *fft) {
+	init_hanns(fft->hanns);
+	init_freq_bounds(fft->freq_bounds, &fft->freq_ratio,
+					 FREQ_LOWER_BOUND, FREQ_UPPER_BOUND);
 }
 
 
-void fft_process(float *samples, float* bars) {
+void fft_process(FFT *fft, const float *samples) {
 	for(int i = 0; i<FFT_SIZE; i++){
-		samples[i] *= hanns[i];
-		fft_buf[i] = samples[i] + 0.0f * I; // this may be inefficient
+		fft->buffer[i] = samples[i] * fft->hanns[i] + 0.0f * I; // this may be inefficient
 	}
 
-	radix2_fft(fft_buf, FFT_SIZE);
+	radix2_fft(fft->buffer, FFT_SIZE);
 
 	for (int i = 0; i<NUM_BINS; i++){
-		magnitudes[i] = cabsf(fft_buf[i]);
+		fft->magnitudes[i] = cabsf(fft->buffer[i]);
 	}
 
 	//logarithm for bars TODO

@@ -3,6 +3,7 @@
 
 #include <stdatomic.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "audio_buffer.h"
 #include <pipewire/pipewire.h>
@@ -14,6 +15,8 @@ typedef struct {
     struct pw_thread_loop *thread_loop;
     struct pw_stream *stream;
     AudioBuffer *buffer;
+    // Borrowed; the caller keeps this stream open until audio_capture_stop.
+    FILE *log_output;
     uint32_t sample_rate;
     uint8_t channels;
     _Atomic uint32_t process_callbacks;
@@ -24,7 +27,8 @@ typedef struct {
 
 // Returns 0 on success, non-zero on failure.
 int audio_capture_start(AudioCapture *capture, AudioBuffer *buffer,
-                        uint32_t sample_rate, uint8_t channels, int* argc, char*** argv);
+                        uint32_t sample_rate, uint8_t channels, FILE *log_output,
+                        int* argc, char*** argv);
 void audio_capture_stop(AudioCapture *capture);
 
 #endif
