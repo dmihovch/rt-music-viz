@@ -45,67 +45,74 @@ static void on_process(void* userdata){
 
 static void on_state_changed(void *userdata, enum pw_stream_state old_state,
                              enum pw_stream_state state, const char *error) {
-    (void)userdata;
+    AudioCapture *capture = userdata;
 
-    fprintf(stderr, "PipeWire stream state: %s -> %s",
+    fprintf(capture->log_output, "PipeWire stream state: %s -> %s",
             pw_stream_state_as_string(old_state),
             pw_stream_state_as_string(state));
     if (error != NULL) {
-        fprintf(stderr, " (%s)", error);
+        fprintf(capture->log_output, " (%s)", error);
     }
-    fputc('\n', stderr);
+    fputc('\n', capture->log_output);
 }
 
 static void on_param_changed(void *userdata, uint32_t id,
                              const struct spa_pod *param) {
-    (void)userdata;
+    AudioCapture *capture = userdata;
 
     if (id != SPA_PARAM_Format) {
         return;
     }
     if (param == NULL) {
-        fprintf(stderr, "PipeWire stream format was cleared\n");
+        fprintf(capture->log_output, "PipeWire stream format was cleared\n");
         return;
     }
 
     struct spa_audio_info_raw format;
     int result = spa_format_audio_raw_parse(param, &format);
     if (result < 0) {
-        fprintf(stderr, "PipeWire could not parse negotiated audio format: %s\n",
+        fprintf(capture->log_output,
+                "PipeWire could not parse negotiated audio format: %s\n",
                 spa_strerror(result));
         return;
     }
 
-    fprintf(stderr, "PipeWire negotiated audio format: %s, %u Hz, %u channels\n",
+    fprintf(capture->log_output,
+            "PipeWire negotiated audio format: %s, %u Hz, %u channels\n",
             spa_type_audio_format_to_short_name(format.format),
             format.rate, format.channels);
 }
 
-static struct pw_stream_events stream_events = {
+static const struct pw_stream_events stream_events = {
 	.version = PW_VERSION_STREAM_EVENTS,
 	.state_changed = on_state_changed,
 	.param_changed = on_param_changed,
 	.process = on_process,
 };
 
-int audio_capture_start(AudioCapture *capture, AudioBuffer *buffer, uint32_t sample_rate, uint8_t channels, int* argc, char*** argv) {
-	pw_init(argc, argv);
+int audio_capture_start(AudioCapture *capture, AudioBuffer *buffer,
+                        uint32_t sample_rate, uint8_t channels,
+                        FILE *log_output, int* argc, char*** argv) {
 	capture->buffer = buffer;
+	capture->log_output = log_output;
 	capture->sample_rate = sample_rate;
 	capture->channels = channels;
 	atomic_init(&capture->process_callbacks, 0);
 	atomic_init(&capture->dequeued_buffers, 0);
 	atomic_init(&capture->buffers_with_samples, 0);
 	atomic_init(&capture->sample_values_received, 0);
+	pw_init(argc, argv);
 	capture->thread_loop = pw_thread_loop_new("audio-capture", NULL); //change if we need special props
 	if (capture->thread_loop == NULL) {
-		fprintf(stderr, "PipeWire failed to create the audio thread loop\n");
+		fprintf(capture->log_output,
+				"PipeWire failed to create the audio thread loop\n");
 		pw_deinit();
 		return 1;
 	}
 	pw_thread_loop_lock(capture->thread_loop);
 	if(pw_thread_loop_start(capture->thread_loop) < 0){
-		fprintf(stderr, "PipeWire failed to start the audio thread loop\n");
+		fprintf(capture->log_output,
+				"PipeWire failed to start the audio thread loop\n");
 		pw_thread_loop_unlock(capture->thread_loop);
 		pw_thread_loop_destroy(capture->thread_loop);
 		pw_deinit();
@@ -120,7 +127,8 @@ int audio_capture_start(AudioCapture *capture, AudioBuffer *buffer, uint32_t sam
         NULL
     );
 	if (props == NULL) {
-		fprintf(stderr, "PipeWire failed to create stream properties\n");
+		fprintf(capture->log_output,
+				"PipeWire failed to create stream properties\n");
 		pw_thread_loop_unlock(capture->thread_loop);
 		pw_thread_loop_stop(capture->thread_loop);
 		pw_thread_loop_destroy(capture->thread_loop);
@@ -140,7 +148,8 @@ int audio_capture_start(AudioCapture *capture, AudioBuffer *buffer, uint32_t sam
     );
 
     if (!capture->stream) {
-		fprintf(stderr, "PipeWire failed to create the capture stream\n");
+		fprintf(capture->log_output,
+				"PipeWire failed to create the capture stream\n");
         pw_thread_loop_unlock(capture->thread_loop);
         pw_thread_loop_stop(capture->thread_loop);
         pw_thread_loop_destroy(capture->thread_loop);
@@ -180,11 +189,12 @@ int audio_capture_start(AudioCapture *capture, AudioBuffer *buffer, uint32_t sam
     pw_thread_loop_unlock(capture->thread_loop);
 
 	if(res < 0){
-		fprintf(stderr, "PipeWire stream connection request failed: %s (%d)\n",
+		fprintf(capture->log_output,
+				"PipeWire stream connection request failed: %s (%d)\n",
 				spa_strerror(res), res);
 		audio_capture_stop(capture);
 	} else {
-		fprintf(stderr,
+		fprintf(capture->log_output,
 				"PipeWire stream connection request accepted; waiting for state and format events\n");
 	}
     return res;
